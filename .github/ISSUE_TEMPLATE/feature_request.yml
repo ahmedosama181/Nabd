@@ -1,0 +1,15 @@
+name: Feature request
+description: An idea to make Nabd more useful
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like Nabd to do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it help?
+      description: Who would use it, and how?

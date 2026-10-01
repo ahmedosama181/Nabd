@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Nabd · Egyptian pound market pulse</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='14' fill='%23e0a00e'/%3E%3Cpath d='M7 26h8l4-10 6 18 4-12 3 4h9' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="page">
+  <header class="top reveal">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
+        <defs>
+          <linearGradient id="lg-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd76a"/><stop offset=".55" stop-color="#e0a00e"/><stop offset="1" stop-color="#a86a00"/></linearGradient>
+        </defs>
+        <rect width="48" height="48" rx="14" fill="url(#lg-gold)"/>
+        <path class="pulse" pathLength="1" d="M7 26h8l4-10 6 18 4-12 3 4h9" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="brand-text">
+        <h1><span data-i18n="title">Nabd</span> <span class="tagline" data-i18n="tagline">Egyptian pound market pulse</span></h1>
+        <p class="sub" id="subtitle"></p>
+      </div>
+    </div>
+    <div class="actions">
+      <div class="seg" role="group" aria-label="Language">
+        <button type="button" data-lang="en" lang="en">EN</button>
+        <button type="button" data-lang="ar" lang="ar">عربي</button>
+      </div>
+      <button type="button" id="theme" class="ghost">
+        <svg class="ico ico-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+        <svg class="ico ico-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+        <svg class="ico ico-auto" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" class="fillme"/></svg>
+        <span id="theme-label"></span>
+      </button>
+      <button type="button" class="primary" id="refresh">
+        <svg class="ico ico-refresh" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>
+        <span data-i18n="refresh">Refresh</span>
+      </button>
+      <a class="btn ghost" id="csv" href="/api/export.csv">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+        <span data-i18n="csv">CSV</span>
+      </a>
+    </div>
+  </header>
+
+  <section class="live" id="live" hidden aria-label="Live prices"></section>
+
+  <div id="progress" class="progress" hidden><i></i></div>
+  <div id="status" class="status" role="status" hidden></div>
+  <div id="banners"></div>
+
+  <div id="skeleton" class="skeleton" aria-hidden="true" hidden>
+    <div class="sk sk-hero"></div>
+    <div class="sk-cards"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+    <div class="sk sk-chart"></div>
+  </div>
+
+  <main id="content" hidden>
+    <section class="hero reveal" aria-live="polite">
+      <svg class="hero-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"/><path d="M14 8h6v6"/></svg>
+      <p class="summary" id="summary"></p>
+    </section>
+
+    <section class="insights reveal" id="insights" aria-label="Insights"></section>
+
+    <section class="cards" id="cards" aria-label="Prices"></section>
+
+    <section class="card main reveal" aria-labelledby="chart-title">
+      <div class="main-head">
+        <h2 id="chart-title" class="visually-hidden">Chart</h2>
+        <div class="tabs" role="tablist" id="tabs">
+          <button role="tab" type="button" data-tab="price" data-i18n="tabPrice">Price</button>
+          <button role="tab" type="button" data-tab="compare" data-i18n="tabCompare">Compare all</button>
+          <button role="tab" type="button" data-tab="month" data-i18n="tabMonth">Month by month</button>
+        </div>
+        <div class="main-tools">
+          <label class="karat"><span data-i18n="karat">Gold karat</span>
+            <select id="karat">
+              <option value="24">24</option>
+              <option value="21">21</option>
+              <option value="18">18</option>
+            </select>
+          </label>
+          <button type="button" class="ghost iconbtn" id="save-chart">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.5-2h5L16 5"/></svg>
+            <span data-i18n="saveChart">Save image</span>
+          </button>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="chart"><canvas id="chart" role="img"></canvas></div>
+      <p class="chart-note" id="chart-note"></p>
+    </section>
+
+    <section class="tools reveal" aria-label="Tools">
+      <div class="card tool" id="calc"></div>
+      <div class="card tool" id="whatif"></div>
+    </section>
+
+    <details class="details reveal" id="details">
+      <summary>
+        <svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        <span data-i18n="details">More details</span> <span class="muted" data-i18n="detailsSub">all numbers, what moved prices, Egyptian gold shops, daily data</span>
+      </summary>
+      <div id="details-body"></div>
+    </details>
+
+    <footer class="foot">
+      <div class="foot-row">
+        <span id="foot-sources"></span>
+        <span data-i18n="disclaimer">For information only, not financial advice.</span>
+      </div>
+      <div class="foot-row foot-legal">
+        <span>© 2026 <b>Ahmed Osama</b> · <a href="https://github.com/ahmedosama181/nabd/blob/main/LICENSE" target="_blank" rel="noopener" data-i18n="license">MIT License</a> · <a href="https://github.com/ahmedosama181/nabd" target="_blank" rel="noopener">GitHub</a></span>
+        <span><span data-i18n="contact">Contact</span>: <a href="mailto:ahmedosama181@outlook.com" dir="ltr">ahmedosama181@outlook.com</a></span>
+      </div>
+    </footer>
+  </main>
+</div>
+<script src="vendor/chart.umd.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>

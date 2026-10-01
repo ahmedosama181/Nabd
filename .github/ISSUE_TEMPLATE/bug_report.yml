@@ -1,0 +1,39 @@
+name: Bug report
+description: Something doesn't work or looks wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? Screenshots help a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open Nabd\n2. Click ...\n3. See ..."
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Windows, Linux, Other]
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: e.g. Safari 18, Chrome 130
+  - type: dropdown
+    id: lang
+    attributes:
+      label: Language
+      options: [English, Arabic, Both]
+  - type: textarea
+    id: terminal
+    attributes:
+      label: Terminal output (if any)
+      description: Anything printed in the window that opened with Nabd.
+      render: text
