@@ -58,5 +58,6 @@ def get(url, timeout=20, retries=2, accept="*/*"):
             last = str(reason)
         except Exception as exc:  # timeouts, resets, ...
             last = "%s: %s" % (type(exc).__name__, exc)
-        time.sleep(1.5 * (attempt + 1))
+        if attempt + 1 < retries:
+            time.sleep(1.5 * (attempt + 1))
     raise FetchError("%s (%s)" % (url.split("?")[0], last))

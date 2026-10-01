@@ -23,7 +23,8 @@ Guidelines:
 - **No horizontal scrolling** at any width, from 360 px phones to wide monitors, in both languages.
 - **Plain language.** The page is for people who are not finance experts; explain new numbers with a ⓘ hint.
 - **Tests.** Add or update tests in `tests/` for changes to calculations, data sources or the saved store. Tests must not use the network.
-- **Data sources.** Only free, public sources without API keys. Never mix two sources inside one price series.
+- **Data sources.** Only free, public sources without API keys. Never mix two sources inside one saved price series (the live "now" point is added on top, labelled and never saved).
+- **Be polite to sources.** Every live request goes through `tracker/live.py` (minimum interval, back-off, one request at a time), and the page only polls while someone is using it.
 - **Small pull requests** with a clear description of what changed and how you checked it.
 
 ## Code of conduct

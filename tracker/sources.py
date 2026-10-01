@@ -7,11 +7,13 @@ Daily history (all five series):
   * Yahoo Finance chart API - backup (Yahoo often answers scripts with HTTP 429 "Too Many Requests")
   * Frankfurter (ECB reference rates) - backup for EUR/USD and GBP/USD only (ECB has no EGP)
 
-Live prices (today, while the page is open):
+Live prices (today, while the page is in use):
   * gold-api.com - real-time gold and silver in USD per ounce (free, no key)
+  * Coinbase public exchange rates - live USD, EUR and GBP in EGP (documented public endpoint, no key);
+    Wise's live mid-market rate as a backup
 
 Local Egyptian market snapshot (today only, scraped from public pages):
-  * egypt.gold-price-today.com
+  * www.gold-price-today.com/egypt
   * edahabapp.com
 """
 import datetime as dt
@@ -133,6 +135,24 @@ def daily_history(start, end, workers=12):
     return out
 
 
+def coinbase_fx():
+    """Live USD, EUR and GBP in EGP from Coinbase's public exchange-rates endpoint (one request)."""
+    rates = json.loads(get("https://api.coinbase.com/v2/exchange-rates?currency=USD", timeout=10, retries=1,
+                           accept="application/json").decode("utf-8"))["data"]["rates"]
+    egp, eur, gbp = float(rates["EGP"]), float(rates["EUR"]), float(rates["GBP"])
+    return {"usd": egp, "eur": egp / eur, "gbp": egp / gbp, "source": "coinbase"}
+
+
+def wise_fx():
+    """Backup: Wise's live mid-market rate, one request per currency."""
+    out = {"source": "wise"}
+    for cur in ("USD", "EUR", "GBP"):
+        payload = json.loads(get("https://wise.com/rates/live?source=%s&target=EGP" % cur, timeout=10, retries=1,
+                                 accept="application/json").decode("utf-8"))
+        out[cur.lower()] = float(payload["value"])
+    return out
+
+
 def live_price(code):
     """Real-time price of gold ('XAU') or silver ('XAG') in USD per ounce from gold-api.com."""
     payload = json.loads(get("https://api.gold-api.com/price/%s" % code, timeout=10, retries=1,
@@ -192,7 +212,7 @@ def parse_karats(text, pattern):
 
 
 LOCAL_SOURCES = (
-    ("gold-price-today.com", "https://egypt.gold-price-today.com/", _RE_GPT),
+    ("gold-price-today.com", "https://www.gold-price-today.com/egypt/", _RE_GPT),
     ("edahabapp.com", "https://edahabapp.com/", _RE_EDAHAB),
 )
 

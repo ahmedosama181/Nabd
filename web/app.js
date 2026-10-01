@@ -21,10 +21,11 @@
       saveChart: "Save image",
       ago: (m) => (m < 1 ? "just now" : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`),
       live: {
-        tag: "LIVE", gold: "Gold ounce", silver: "Silver ounce", goldEgp: (k) => `Gold ${k}k now`, shop: (k) => `Shops, ${k}k`,
-        sells: "sell", buys: "buy", today: "today", oz: "USD/oz", g: "EGP/g", at: (x) => `at ${x}`,
-        info: "Live global gold and silver prices from gold-api.com, refreshed every minute while this page is open and converted with the latest dollar rate. Shop prices come from an Egyptian gold price site and refresh every 10 minutes.",
+        tag: "LIVE", paused: "PAUSED", gold: "Gold ounce", silver: "Silver ounce", goldEgp: (k) => `Gold ${k}k now`, shop: (k) => `Shops, ${k}k`,
+        usd: "Dollar now", egp: "EGP", eur: "€", gbp: "£", sells: "sell", buys: "buy", today: "today", since: (d) => `since ${d}`, oz: "USD/oz", g: "EGP/g", at: (x) => `at ${x}`,
+        info: "Gold and silver: gold-api.com, every minute. Dollar, euro and pound: Coinbase (Wise as a backup), every 5 minutes. Shops: an Egyptian gold price site, every 10 minutes. “Today” is the change from the latest daily price. Updates pause when you switch to another tab or leave the page idle, and resume as soon as you come back.",
       },
+      liveWord: "live", nowWord: "now", today: "Today:", sinceDay: (d) => `Since ${d}:`,
       insights: {
         atHigh: (n) => [n, " is at its highest price this year."],
         atLow: (n) => [n, " is at its lowest price this year."],
@@ -50,6 +51,7 @@
       backup: "The main price source didn't answer, so a backup source was used. Small differences are normal.",
       sourceNames: { daily: "currency-api daily rates (jsDelivr / Cloudflare)", yahoo: "Yahoo Finance (backup)", frankfurter: "Frankfurter / ECB (backup)" },
       liveLine: "Live gold and silver: gold-api.com",
+      liveFxLine: (s) => `Live dollar, euro and pound: ${s || "not available right now"} (Coinbase, with Wise as a backup)`,
       names: { usd: "US Dollar", eur: "Euro", gbp: "British Pound", gold: (k) => `Gold ${k}k`, silver: "Silver" },
       units: { usd: "EGP per dollar", eur: "EGP per euro", gbp: "EGP per pound", gold: "EGP per gram", silver: "EGP per gram" },
       up: "up", down: "down", flat: "no change",
@@ -79,6 +81,7 @@
       tips: {
         ytd: "How much the price changed since the last price of last year (31 December).",
         d1: "Change compared with the previous trading day.",
+        d1Live: "Today's change: the live price compared with the latest daily price.",
         d7: "Change compared with 7 days ago.", d30: "Change compared with 30 days ago.",
         high: "Highest price this year and the day it happened.", low: "Lowest price this year and the day it happened.",
         avg: "Average daily price this year.",
@@ -101,7 +104,8 @@
       hHow: "How the numbers are calculated",
       how: [
         "Gold and silver in pounds = global price in dollars per ounce × dollar price in pounds ÷ 31.1035 (grams in an ounce). Gold 21k = 24k × 21/24. Silver is pure (999). A gold pound is 8 grams of 21k.",
-        "Daily prices are the rates published once a day by currency-api (spot prices). Live prices at the top come from gold-api.com.",
+        "Daily prices are the rates currency-api publishes once a day, usually early in the morning (Cairo time).",
+        "The prices on the cards and the last point of each chart are live: gold and silver from gold-api.com, the dollar, euro and pound from Coinbase (or Wise). These are market rates, the midpoint between buying and selling: a bank or exchange office buys a little lower and sells a little higher.",
         "Euro and pound sterling in pounds = their price in dollars × dollar price in pounds.",
         "The year starts from the last price of 31 December. Month by month compares each month's last price with the previous month's last price.",
         "Weekends and holidays have no new prices; the last known price is carried forward in the charts.",
@@ -129,10 +133,11 @@
         return hr === 1 ? "منذ ساعة" : hr === 2 ? "منذ ساعتين" : hr <= 10 ? `منذ ${hr} ساعات` : `منذ ${hr} ساعة`;
       },
       live: {
-        tag: "مباشر", gold: "أوقية الذهب", silver: "أوقية الفضة", goldEgp: (k) => `ذهب عيار ${k} الآن`, shop: (k) => `المحلات، عيار ${k}`,
-        sells: "بيع", buys: "شراء", today: "اليوم", oz: "دولار/أوقية", g: "جنيه/جرام", at: (x) => `الساعة ${x}`,
-        info: "أسعار الذهب والفضة العالمية المباشرة من gold-api.com، تتحدث كل دقيقة طالما الصفحة مفتوحة ومحوّلة بآخر سعر للدولار. أسعار المحلات من موقع مصري لأسعار الذهب وتتحدث كل 10 دقائق.",
+        tag: "مباشر", paused: "متوقف مؤقتاً", gold: "أوقية الذهب", silver: "أوقية الفضة", goldEgp: (k) => `ذهب عيار ${k} الآن`, shop: (k) => `المحلات، عيار ${k}`,
+        usd: "الدولار الآن", egp: "جنيه", eur: "يورو", gbp: "إسترليني", sells: "بيع", buys: "شراء", today: "اليوم", since: (d) => `منذ ${d}`, oz: "دولار/أوقية", g: "جنيه/جرام", at: (x) => `الساعة ${x}`,
+        info: "الذهب والفضة: gold-api.com كل دقيقة. الدولار واليورو والإسترليني: Coinbase (وWise كمصدر احتياطي) كل 5 دقائق. المحلات: موقع مصري لأسعار الذهب كل 10 دقائق. تغيّر «اليوم» محسوب مقارنةً بآخر سعر يومي. تتوقف التحديثات عند الانتقال لتبويب آخر أو ترك الصفحة دون استخدام، وتعود فور رجوعك.",
       },
+      liveWord: "مباشر", nowWord: "الآن", today: "اليوم:", sinceDay: (d) => `منذ ${d}:`,
       insights: {
         atHigh: (n) => ["أعلى سعر هذا العام الآن: ", n, "."],
         atLow: (n) => ["أدنى سعر هذا العام الآن: ", n, "."],
@@ -158,6 +163,7 @@
       backup: "مصدر الأسعار الرئيسي لم يستجب، لذلك استُخدم مصدر احتياطي. الفروق الصغيرة طبيعية.",
       sourceNames: { daily: "currency-api – أسعار يومية (jsDelivr / Cloudflare)", yahoo: "Yahoo Finance (احتياطي)", frankfurter: "Frankfurter / البنك المركزي الأوروبي (احتياطي)" },
       liveLine: "الذهب والفضة المباشر: gold-api.com",
+      liveFxLine: (s) => `الدولار واليورو والإسترليني المباشر: ${s || "غير متاح حالياً"} (Coinbase، وWise كمصدر احتياطي)`,
       names: { usd: "الدولار الأمريكي", eur: "اليورو", gbp: "الجنيه الإسترليني", gold: (k) => `ذهب عيار ${k}`, silver: "الفضة" },
       units: { usd: "جنيه لكل دولار", eur: "جنيه لكل يورو", gbp: "جنيه لكل إسترليني", gold: "جنيه للجرام", silver: "جنيه للجرام" },
       up: "ارتفاع", down: "انخفاض", flat: "بدون تغيير",
@@ -186,6 +192,7 @@
       tips: {
         ytd: "نسبة تغير السعر منذ آخر سعر في العام الماضي (31 ديسمبر).",
         d1: "التغير مقارنةً بيوم التداول السابق.",
+        d1Live: "تغيّر اليوم: السعر المباشر مقارنةً بآخر سعر يومي.",
         d7: "التغير مقارنةً بما قبل 7 أيام.", d30: "التغير مقارنةً بما قبل 30 يوماً.",
         high: "أعلى سعر هذا العام واليوم الذي حدث فيه.", low: "أدنى سعر هذا العام واليوم الذي حدث فيه.",
         avg: "متوسط السعر اليومي هذا العام.",
@@ -208,7 +215,8 @@
       hHow: "كيف تُحسب الأرقام",
       how: [
         "الذهب والفضة بالجنيه = السعر العالمي بالدولار للأوقية × سعر الدولار بالجنيه ÷ 31.1035 (عدد الجرامات في الأوقية). عيار 21 = عيار 24 × 21/24. الفضة نقية (999). الجنيه الذهب = 8 جرام عيار 21.",
-        "الأسعار اليومية هي الأسعار التي ينشرها currency-api مرة يومياً (أسعار فورية). الأسعار المباشرة أعلى الصفحة من gold-api.com.",
+        "الأسعار اليومية هي الأسعار التي ينشرها currency-api مرة يومياً، عادةً في الصباح الباكر (بتوقيت القاهرة).",
+        "الأسعار في البطاقات وآخر نقطة في كل رسم بياني أسعار مباشرة: الذهب والفضة من gold-api.com، والدولار واليورو والإسترليني من Coinbase (أو Wise). هذه أسعار السوق، أي المتوسط بين سعري الشراء والبيع: البنك أو شركة الصرافة يشتري بأقل قليلاً ويبيع بأعلى قليلاً.",
         "اليورو والإسترليني بالجنيه = سعرهما بالدولار × سعر الدولار بالجنيه.",
         "يبدأ العام من آخر سعر في 31 ديسمبر. مقارنة الشهور تقارن آخر سعر في كل شهر بآخر سعر في الشهر السابق.",
         "لا توجد أسعار جديدة في العطلات ونهاية الأسبوع؛ يُستخدم آخر سعر معروف في الرسوم.",
@@ -270,11 +278,15 @@
   const num = (text, cls) => h("span", { class: "num" + (cls ? " " + cls : "") }, text);
   const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const color = (slot) => cssVar("--series-" + slot);
-  const dateParts = (s) => s.split("-").map(Number);
+  const dateParts = (s) => s.slice(0, 10).split("-").map(Number);
+  const isLive = (s) => typeof s === "string" && s.length > 10; // the live point's key has a time: "2026-10-01T16:33"
+  const timeOf = (s) => s.slice(11, 16);
   function fmtDate(s, withYear = true) {
     const [y, m, d] = dateParts(s);
     return d + " " + MONTHS[state.lang === "ar" ? "ar" : "en"][m - 1] + (withYear ? " " + y : "");
   }
+  // A point on a chart or in the table: its date, plus the time for the live point.
+  const fmtPoint = (s, withYear = true) => fmtDate(s, withYear) + (isLive(s) ? " · " + LRI + timeOf(s) + PDI + " (" + t().liveWord + ")" : "");
   function fmtMonth(ym, long) {
     const [y, m] = dateParts(ym + "-01");
     return (state.lang === "ar" ? MONTHS.ar : long ? MONTHS.enLong : MONTHS.en)[m - 1] + (long ? " " + y : "");
@@ -351,7 +363,9 @@
       $("skeleton").hidden = true;
       $("content").hidden = false;
       render();
-      if (first) { pollLive(); setTimeout(() => document.body.classList.add("settled"), 1800); }
+      if (quiet) schedule(); // a quiet reload follows a live poll that just happened
+      else pollLive().then(schedule);
+      if (first) setTimeout(() => document.body.classList.add("settled"), 1800);
     } catch (err) {
       if (!state.data) { $("skeleton").hidden = true; status.hidden = false; status.classList.add("error"); status.textContent = t().loadError(err.message); }
       else if (!quiet) banner(t().refreshFailed(err.message));
@@ -363,6 +377,7 @@
     }
   }
   function banner(text) { $("banners").append(h("div", { class: "banner", role: "status" }, text)); }
+  const fxName = (d) => ({ coinbase: "Coinbase", wise: "Wise" })[d && d.live && d.live.fx_source] || null;
 
   // ------------------------------------------------------------------ render
   function render() {
@@ -375,7 +390,7 @@
     d.warnings.forEach((w) => banner(w));
     updateAgo();
     const used = [...new Set(Object.values(d.sources).filter(Boolean))].map((s) => ({ daily: "currency-api", yahoo: "Yahoo Finance", frankfurter: "Frankfurter" })[s] || s);
-    $("foot-sources").textContent = t().footSources(used.concat(["gold-api.com", d.local && d.local.source].filter(Boolean)).join(" · "));
+    $("foot-sources").textContent = t().footSources(used.concat(["gold-api.com", fxName(d), d.local && d.local.source].filter(Boolean)).join(" · "));
     renderSummary();
     renderInsights();
     renderCards();
@@ -423,6 +438,11 @@
     return svg;
   }
 
+  // What the card's last change compares with: the previous day, or (live) the latest daily price.
+  function dayLabel(k) {
+    if (!isLive(k.end_date) || !k.prev_date) return t().lastDay;
+    return k.prev_date.slice(0, 10) === k.end_date.slice(0, 10) ? t().today : t().sinceDay(fmtDate(k.prev_date, false));
+  }
   let counted = false; // numbers count up from the 31 Dec price only on the first render
   function countUp(el, from, to, dec) {
     if (counted || matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = nf(to, dec); return; }
@@ -448,7 +468,8 @@
         h("span", { class: "krow" }, pill(k.change_pct), h("span", { class: "kunit kyear" }, t().thisYear)),
         h("span", { class: "kfrom" }, fmtDate(k.start_date) + ": ", num(nf(k.start, a.decimals))),
         sparkline(a.key, c),
-        h("span", { class: "ktoday" }, t().lastDay + " ", num(pct(k.change_1d_pct, 2))));
+        h("span", { class: "ktoday" }, dayLabel(k) + " ", num(pct(k.change_1d_pct, 2)),
+          isLive(k.end_date) ? h("span", { class: "kbadge" }, h("i"), t().liveWord + " ", num(timeOf(k.end_date))) : null));
       card.addEventListener("click", () => {
         state.focus = s.id; state.tab = "price"; store.set("focus", s.id); store.set("tab", "price");
         syncCards(); renderTabs(); renderChart();
@@ -605,13 +626,17 @@
       const s = act.find((x) => x.id === state.focus) || act[0];
       const a = asset(keyOf(s.id)), vals = g.series[a.key], base = vals.find((v) => v != null), c = color(s.slot);
       opts.plugins.tooltip.callbacks = {
-        title: (it) => fmtDate(g.dates[it[0].dataIndex]),
+        title: (it) => fmtPoint(g.dates[it[0].dataIndex]),
         label: (it) => " " + wrapNum(nf(it.parsed.y, a.decimals)) + "  " + t().units[s.id],
         afterLabel: (it) => {
           const i = it.dataIndex; let j = i - 1;
           while (j >= 0 && vals[j] == null) j--;
           const out = [wrapNum(pct((it.parsed.y / base - 1) * 100, 2)) + "  " + t().tipSince(baseDate())];
-          if (j >= 0) out.push(wrapNum(pct((it.parsed.y / vals[j] - 1) * 100, 2)) + "  " + t().tipPrevDay);
+          if (j >= 0) {
+            const vs = !isLive(g.dates[i]) ? t().tipPrevDay  // the live point: vs the latest daily price
+              : g.dates[j].slice(0, 10) === g.dates[i].slice(0, 10) ? t().live.today : t().live.since(fmtDate(g.dates[j], false));
+            out.push(wrapNum(pct((it.parsed.y / vals[j] - 1) * 100, 2)) + "  " + vs);
+          }
           return out;
         },
       };
@@ -634,7 +659,7 @@
           borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, pointHoverBorderColor: T.surface, pointHoverBorderWidth: 2, tension: 0, spanGaps: true };
       });
       opts.plugins.tooltip.callbacks = {
-        title: (it) => fmtDate(g.dates[it[0].dataIndex]),
+        title: (it) => fmtPoint(g.dates[it[0].dataIndex]),
         label: (it) => " " + it.dataset.label + "  " + wrapNum(pct(it.parsed.y - 100, 2)),
       };
       opts.plugins.tooltip.itemSort = (a, b) => b.parsed.y - a.parsed.y;
@@ -699,12 +724,13 @@
     const keys = act.map((s) => keyOf(s.id)).concat(["gold_oz_usd", "silver_oz_usd"]).filter(asset);
     const slotColor = (key) => { const s = SERIES.find((x) => keyOf(x.id) === key); return s ? color(s.slot) : cssVar("--ink-3"); };
     const label = (a) => (a.key === "gold_oz_usd" ? L.goldGlobal : a.key === "silver_oz_usd" ? L.silverGlobal : nameOf(a.group === "currency" ? a.key : a.group));
-    const short = (dstr) => fmtDate(dstr, false);
+    const short = (dstr) => (isLive(dstr) ? L.nowWord : fmtDate(dstr, false));
+    const d1Tip = d.live_key ? L.tips.d1Live : L.tips.d1;
     const monthCell = (m) => (m ? [fmtMonth(m.month) + " ", num(pct(m.change_pct))] : "–");
     const glossary = h("dl", { class: "glossary" }, [["colYtd", "ytd"], ["col1d", "d1"], ["col7d", "d7"], ["col30d", "d30"], ["colHigh", "high"], ["colLow", "low"],
-      ["colAvg", "avg"], ["colVol", "vol"], ["colDd", "dd"], ["colBest", "best"], ["colWorst", "worst"]].map(([c, k]) => [h("dt", {}, L[c]), h("dd", {}, L.tips[k])]));
+      ["colAvg", "avg"], ["colVol", "vol"], ["colDd", "dd"], ["colBest", "best"], ["colWorst", "worst"]].map(([c, k]) => [h("dt", {}, L[c]), h("dd", {}, k === "d1" ? d1Tip : L.tips[k])]));
     parts.push(h("h3", {}, L.hKpi), h("p", { class: "lead lead-wide" }, L.leadKpi), h("p", { class: "lead lead-narrow" }, L.leadKpiNarrow), table(
-      [L.colAsset, L.colLatest, th(L.colYtd, L.tips.ytd), th(L.col1d, L.tips.d1), th(L.col7d, L.tips.d7), th(L.col30d, L.tips.d30),
+      [L.colAsset, L.colLatest, th(L.colYtd, L.tips.ytd), th(L.col1d, d1Tip), th(L.col7d, L.tips.d7), th(L.col30d, L.tips.d30),
        th(L.colHigh, L.tips.high), th(L.colLow, L.tips.low), th(L.colAvg, L.tips.avg), th(L.colVol, L.tips.vol), th(L.colDd, L.tips.dd),
        th(L.colBest, L.tips.best), th(L.colWorst, L.tips.worst)],
       keys.map((key) => { const a = asset(key), k = a.kpis;
@@ -752,7 +778,8 @@
     showBtn.addEventListener("click", () => {
       showBtn.remove();
       dataBox.append(table([L.colDate].concat(cols.map(colName)),
-        g.dates.map((dd, i) => h("tr", {}, h("td", {}, num(dd)), cols.map((k) => h("td", {}, num(nf(g.series[k][i], asset(k).decimals)))))).reverse(), "datatable stack-md"));
+        g.dates.map((dd, i) => h("tr", isLive(dd) ? { class: "live-row-t" } : {}, h("td", {}, num(isLive(dd) ? dd.slice(0, 10) + " " + timeOf(dd) : dd), isLive(dd) ? " (" + L.liveWord + ")" : null),
+          cols.map((k) => h("td", {}, num(nf(g.series[k][i], asset(k).decimals)))))).reverse(), "datatable stack-md"));
     });
     parts.push(h("h3", {}, L.hData), showBtn, dataBox);
 
@@ -760,7 +787,7 @@
     parts.push(h("h3", {}, L.hHow), h("ul", { class: "lead" }, L.how.map((x) => h("li", {}, x))));
     parts.push(h("h3", {}, L.hSources), h("ul", { class: "lead" },
       Object.keys(d.sources).map((sym) => h("li", {}, L.sourceLine(state.lang === "ar" ? SYMBOL_AR[sym] || sym : d.labels[sym], L.sourceNames[d.sources[sym]] || d.sources[sym]))),
-      h("li", {}, L.localLine(l && l.source)), h("li", {}, L.liveLine)));
+      h("li", {}, L.localLine(l && l.source)), h("li", {}, L.liveLine), h("li", {}, L.liveFxLine(fxName(d)))));
     body.replaceChildren(...parts);
   }
 
@@ -768,14 +795,15 @@
   function updateAgo() {
     const d = state.data;
     if (!d) return;
-    const mins = Math.max(0, Math.floor((Date.now() - new Date(d.fetched_at).getTime()) / 60000));
+    const at = [d.fetched_at, d.live && d.live.fx_at, d.live && d.live.metals_at].filter(Boolean).sort().pop();
+    const mins = Math.max(0, Math.floor((Date.now() - new Date(at).getTime()) / 60000));
     const sub = $("subtitle");
     sub.textContent = t().subtitle(fmtDate(d.period.start), fmtDate(d.period.end), t().ago(mins));
-    sub.title = fmtTime(d.fetched_at);
+    sub.title = fmtTime(at);
   }
   let lastAuto = 0;
   function maybeRefresh() { // the server re-downloads only when its data is older than 30 minutes
-    if (!state.data || state.loading || document.hidden) return;
+    if (!state.data || state.loading || !inUse()) return;
     if (Date.now() - new Date(state.data.fetched_at).getTime() < 31 * 60000) return;
     if (Date.now() - lastAuto < 10 * 60000) return; // offline: don't retry more than every 10 minutes
     lastAuto = Date.now();
@@ -797,6 +825,11 @@
     path.setAttribute("d", ICONS[name]);
     svg.append(path);
     return svg;
+  }
+  function perDay(key) { // one value per day: the live point replaces today's daily value
+    const g = state.data.grid, out = [];
+    g.dates.forEach((d, i) => { if (i && d.slice(0, 10) === g.dates[i - 1].slice(0, 10)) out[out.length - 1] = g.series[key][i]; else out.push(g.series[key][i]); });
+    return out;
   }
   function streakOf(vals) { // consecutive moves in the same direction up to the latest day (flat days skipped)
     let dirn = 0, n = 0;
@@ -824,7 +857,7 @@
       out.push({ icon: "peak", parts: L.fromPeak(b("gold"), num(nf(gold.k.high, 0) + " " + t().live.g), fmtDate(gold.k.high_date, false),
         num(pct(Math.abs((gold.k.end / gold.k.high - 1) * 100)).slice(1))) });
     }
-    const streaks = rows.map((r) => Object.assign({ id: r.id }, streakOf(state.data.grid.series[r.a.key]))).sort((x, y) => y.n - x.n);
+    const streaks = rows.map((r) => Object.assign({ id: r.id }, streakOf(perDay(r.a.key)))).sort((x, y) => y.n - x.n);
     if (streaks.length && streaks[0].n >= 3) out.push({ icon: "streak", parts: (streaks[0].dirn > 0 ? L.streakUp : L.streakDown)(b(streaks[0].id), num(String(streaks[0].n))) });
     const vol = rows.filter((r) => r.k.daily_volatility_pct != null).sort((x, y) => y.k.daily_volatility_pct - x.k.daily_volatility_pct);
     if (vol.length > 1) {
@@ -941,44 +974,89 @@
       h("span", { class: "wif-val" }, num(nf(r.v, 0)), r.cash ? null : pill(r.p)))));
   }
 
-  // ------------------------------------------------------------------ live strip: real-time gold and silver while the page is open
+  // ------------------------------------------------------------------ live prices: only while someone is using the page
+  // Live prices are fetched only while the page is in use: its tab is visible and there was a mouse, key, scroll
+  // or touch event in the last 3 minutes (1 minute when the window is not focused, i.e. the person is working in
+  // another window). Otherwise nothing is fetched at all (the server never fetches on its own), and fresh prices
+  // are fetched as soon as the person comes back.
+  const LIVE_EVERY = 60000, IDLE_AFTER = 3 * 60000, IDLE_UNFOCUSED = 60000;
+  let lastInput = Date.now(), lastPoll = 0, pollTimer = null, polling = null, paused = false;
+  const inUse = () => !document.hidden && Date.now() - lastInput < (document.hasFocus() ? IDLE_AFTER : IDLE_UNFOCUSED);
+  function schedule() {
+    clearTimeout(pollTimer);
+    const off = !inUse();
+    if (off !== paused) { paused = off; renderLive(); }
+    if (off || !state.data) return; // resumes on the next visibility, focus or input event
+    pollTimer = setTimeout(tick, Math.max(0, lastPoll + LIVE_EVERY - Date.now()));
+  }
+  async function tick() {
+    if (inUse()) { await pollLive(); maybeRefresh(); }
+    schedule();
+  }
+  function onActivity() {
+    lastInput = Date.now();
+    // Coming back, or waking up after the computer slept (timers stop then): fetch fresh prices right away.
+    if (paused || Date.now() - lastPoll > LIVE_EVERY + 5000) schedule();
+  }
+  ["pointermove", "pointerdown", "keydown", "wheel", "touchstart", "scroll"].forEach((ev) => window.addEventListener(ev, onActivity, { capture: true, passive: true }));
+  window.addEventListener("focus", onActivity);
+  window.addEventListener("pageshow", onActivity);
+  window.addEventListener("blur", schedule);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) schedule(); else { updateAgo(); onActivity(); } });
+
   const lastLive = {};
-  async function pollLive() {
-    if (document.hidden) return;
-    try {
-      const res = await fetch("/api/live");
-      if (res.ok) state.live = await res.json();
-    } catch (e) { /* keep the last values */ }
-    renderLive();
-    updateCalc();
+  function pollLive() {
+    if (polling) return polling; // one request at a time
+    lastPoll = Date.now();
+    polling = fetch("/api/live")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => { if (body) state.live = body; })
+      .catch(() => { /* keep the last values */ })
+      .then(() => { polling = null; renderLive(); updateCalc(); });
+    return polling;
   }
   function renderLive() {
     const box = $("live"), lv = state.live, L = t().live;
-    // Only show the strip when real-time prices actually arrived (not just cached shop prices).
-    if (!lv || !state.data || !lv.metals || !Object.keys(lv.metals).length) { box.hidden = true; return; }
+    const metals = (lv && lv.metals) || {};
+    // Only show the strip when live prices actually arrived (not just saved shop prices).
+    if (!lv || !state.data || (!Object.keys(metals).length && !lv.fx)) { box.hidden = true; return; }
     const items = [];
     const change = (now, ref) => (ref ? (now / ref - 1) * 100 : null);
+    const day = String(lv.fetched_at || "").slice(0, 10);
+    const vs = (refDate) => (!refDate || refDate.slice(0, 10) === day ? L.today : L.since(fmtDate(refDate, false)));
     const toNum = (x) => parseFloat(String(x).replace(/,/g, ""));
-    const item = (key, label, value, unit, chg) => {
+    const item = (key, label, value, unit, chg, refDate, extra) => {
       const val = num(value, "live-val");
       if (lastLive[key] != null && lastLive[key] !== value) val.classList.add(toNum(value) > toNum(lastLive[key]) ? "flash-up" : "flash-down");
       lastLive[key] = value;
       return h("div", { class: "live-item" }, h("span", { class: "live-label" }, label),
         h("span", { class: "live-row" }, val, h("span", { class: "live-unit" }, unit),
-          chg == null ? null : h("span", { class: "live-chg " + dir(chg) }, num(pct(chg, 2)), " " + L.today)));
+          chg == null ? null : h("span", { class: "live-chg " + dir(chg) }, num(pct(chg, 2)), " " + vs(refDate))), extra || null);
     };
-    const xau = lv.metals && lv.metals.XAU, xag = lv.metals && lv.metals.XAG;
-    if (xau) items.push(item("xau", L.gold, nf(xau.usd_oz, 2), L.oz, change(xau.usd_oz, xau.ref)));
-    if (xag) items.push(item("xag", L.silver, nf(xag.usd_oz, 2), L.oz, change(xag.usd_oz, xag.ref)));
-    if (xau && lv.fx) items.push(item("gegp" + state.karat, L.goldEgp(state.karat), nf(((xau.usd_oz * lv.fx) / OUNCE_G) * Number(state.karat) / 24, 0), L.g, change(xau.usd_oz, xau.ref)));
+    const xau = metals.XAU, xag = metals.XAG, fx = lv.fx, usd = fx ? fx.usd : lv.fx_daily;
+    if (xau) items.push(item("xau", L.gold, nf(xau.usd_oz, 2), L.oz, change(xau.usd_oz, xau.ref), xau.ref_date));
+    if (xag) items.push(item("xag", L.silver, nf(xag.usd_oz, 2), L.oz, change(xag.usd_oz, xag.ref), xag.ref_date));
+    if (xau && usd) { // gold per gram in EGP: live gold x live dollar, vs the same from the latest daily prices
+      const gram = (oz, rate) => ((oz * rate) / OUNCE_G) * Number(state.karat) / 24;
+      items.push(item("gegp" + state.karat, L.goldEgp(state.karat), nf(gram(xau.usd_oz, usd), 0), L.g,
+        xau.ref && lv.fx_daily ? change(gram(xau.usd_oz, usd), gram(xau.ref, lv.fx_daily)) : null, xau.ref_date));
+    }
+    if (fx) {
+      const ref = lv.fx_ref || {};
+      items.push(item("usd", L.usd, nf(fx.usd, 2), L.egp, change(fx.usd, ref.usd), lv.fx_date,
+        h("span", { class: "live-sub" }, h("span", {}, L.eur + " ", num(nf(fx.eur, 2))), h("span", {}, L.gbp + " ", num(nf(fx.gbp, 2))))));
+    }
     const shop = shopPrices()[Number(state.karat)];
     if (shop) items.push(h("div", { class: "live-item" }, h("span", { class: "live-label" }, L.shop(state.karat)),
       h("span", { class: "live-row" }, h("span", { class: "live-unit" }, L.sells), num(nf(shop.sell, 0), "live-val"),
         h("span", { class: "live-unit" }, "· " + L.buys), num(nf(shop.buy, 0), "live-val"))));
     if (!items.length) { box.hidden = true; return; }
-    const stamp = xau && xau.updated_at ? new Date(xau.updated_at) : new Date(lv.fetched_at);
+    const stamps = [xau && xau.updated_at, fx && fx.at].filter(Boolean).map((x) => new Date(x).getTime()).filter((x) => !isNaN(x));
+    const stamp = new Date(stamps.length ? Math.max(...stamps) : lv.fetched_at);
     const hhmm = String(stamp.getHours()).padStart(2, "0") + ":" + String(stamp.getMinutes()).padStart(2, "0");
-    box.replaceChildren(h("div", { class: "live-tag" }, h("i", { class: "live-dot" }), h("b", {}, L.tag), hint(L.info), h("span", { class: "live-time" }, num(L.at(hhmm)))), ...items);
+    box.classList.toggle("paused", paused);
+    box.replaceChildren(h("div", { class: "live-tag" }, h("i", { class: "live-dot" }), h("b", {}, paused ? L.paused : L.tag), hint(L.info),
+      h("span", { class: "live-time" }, num(L.at(hhmm)))), ...items);
     box.hidden = false;
   }
 
@@ -1083,9 +1161,7 @@
   $("details").addEventListener("toggle", () => { if ($("details").open) renderDetails(); });
   $("refresh").addEventListener("click", () => load(true));
   $("save-chart").addEventListener("click", saveChart);
-  setInterval(() => { updateAgo(); maybeRefresh(); }, 30000);
-  setInterval(pollLive, 60000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { updateAgo(); maybeRefresh(); pollLive(); } });
+  setInterval(updateAgo, 30000);
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
   (mq.addEventListener ? mq.addEventListener.bind(mq, "change") : mq.addListener.bind(mq))(() => { if (state.theme === "auto") render(); });
 

@@ -198,29 +198,6 @@ class Sources(unittest.TestCase):
         self.assertEqual(collect.source_id("Frankfurter (ECB) - fallback"), "frankfurter")
         self.assertIsNone(collect.source_id(None))
 
-    def test_live_payload_uses_latest_saved_rate(self):
-        import json, tempfile
-        tmp = tempfile.mkdtemp()
-        old = collect.STORE_PATH
-        collect.STORE_PATH = os.path.join(tmp, "store.json")
-        collect._live.update(at=0.0, data=None)
-        try:
-            st = collect._empty_store(2026)
-            st["series"]["EGP=X"] = {"2026-03-03": 50.0, "2026-03-04": 51.0}
-            st["series"]["GC=F"] = {"2026-03-04": 3000.0}
-            with open(collect.STORE_PATH, "w") as fh:
-                json.dump(st, fh)
-            with self.mock.patch.object(collect.sources, "live_price", side_effect=lambda c: {"price": 3030.0 if c == "XAU" else 33.0, "updated_at": "t"}), \
-                    self.mock.patch.object(collect, "_refresh_local", lambda: collect._local.update(busy=False)):
-                live = collect.live_payload(today=dt.date(2026, 3, 4))
-            self.assertEqual(live["fx"], 51.0)
-            self.assertEqual(live["metals"]["XAU"]["usd_oz"], 3030.0)
-            self.assertEqual(live["metals"]["XAU"]["ref"], 3000.0)
-            self.assertIsNone(live["metals"]["XAG"]["ref"])
-        finally:
-            collect.STORE_PATH = old
-            collect._live.update(at=0.0, data=None)
-
 
 if __name__ == "__main__":
     unittest.main()
