@@ -12,7 +12,7 @@
 ![macOS | Windows](https://img.shields.io/badge/runs%20on-macOS%20%7C%20Windows-lightgrey.svg)
 ![English | العربية](https://img.shields.io/badge/language-English%20%7C%20%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A9-orange.svg)
 
-**[⬇ Download the latest version (ZIP)](https://github.com/ahmedosama181/nabd/archive/refs/heads/main.zip)** · [How to run it](#-quick-start) · [بالعربي](#-بالعربي)
+**[⬇ Download the latest version (ZIP)](https://github.com/ahmedosama181/nabd/archive/refs/heads/main.zip)** · [Releases](https://github.com/ahmedosama181/nabd/releases/latest) · [How to run it](#-quick-start) · [بالعربي](#-بالعربي)
 
 <img src="docs/screenshots/dashboard-en-dark.png" alt="Nabd dashboard in English, dark theme" width="100%">
 
