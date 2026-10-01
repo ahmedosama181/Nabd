@@ -18,3 +18,4 @@ First public release.
 - English and Arabic with full right-to-left layout; light, dark and automatic themes; responsive layout without horizontal scrolling.
 - Local yearly store with incremental updates; automatic refresh; offline mode with saved prices.
 - One-double-click launchers for macOS and Windows that set up a private portable Python when none is installed.
+- Small download for users (`Nabd.zip`, about 130 KB): only the files needed to run, built and attached to each release automatically.

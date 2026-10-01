@@ -5,3 +5,4 @@ __pycache__/
 data/store.json
 data/store.json.tmp
 runtime/
+dist/

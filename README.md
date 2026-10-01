@@ -12,7 +12,7 @@
 ![macOS | Windows](https://img.shields.io/badge/runs%20on-macOS%20%7C%20Windows-lightgrey.svg)
 ![English | العربية](https://img.shields.io/badge/language-English%20%7C%20%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A9-orange.svg)
 
-**[⬇ Download the latest version (ZIP)](https://github.com/ahmedosama181/nabd/archive/refs/heads/main.zip)** · [Releases](https://github.com/ahmedosama181/nabd/releases/latest) · [How to run it](#-quick-start) · [بالعربي](#-بالعربي)
+**[⬇ Download Nabd (ZIP, about 130 KB)](https://github.com/ahmedosama181/Nabd/releases/latest/download/Nabd.zip)** · [Releases](https://github.com/ahmedosama181/nabd/releases/latest) · [How to run it](#-quick-start) · [بالعربي](#-بالعربي)
 
 <img src="docs/screenshots/dashboard-en-dark.png" alt="Nabd dashboard in English, dark theme" width="100%">
 
@@ -41,7 +41,7 @@ Nabd is a small app that runs on your own computer and opens in your browser. It
 
 ## 🚀 Quick start
 
-1. **[Download the ZIP](https://github.com/ahmedosama181/nabd/archive/refs/heads/main.zip)** and unzip it.
+1. **[Download Nabd.zip](https://github.com/ahmedosama181/Nabd/releases/latest/download/Nabd.zip)** and unzip it. It holds only the files needed to run Nabd; there is no installer.
 2. Open the folder and start Nabd:
 
 | | What to do | First time only |
@@ -115,10 +115,15 @@ Nabd runs entirely on your computer. There are no accounts, no tracking and no a
 
 ## 🧑‍💻 For developers
 
+The full source (tests, docs, screenshots) is in this repository: clone it or download [main.zip](https://github.com/ahmedosama181/Nabd/archive/refs/heads/main.zip).
+
 ```bash
 python3 app.py --no-browser                     # run the server
 python3 -m unittest discover -s tests -t .      # offline tests
+python3 tools/build_release.py                  # build the small download: dist/Nabd.zip
 ```
+
+Publishing a release on GitHub builds `Nabd.zip` and attaches it to the release automatically ([`.github/workflows/release.yml`](.github/workflows/release.yml)).
 
 ```
 app.py              local web server (standard library only)
@@ -129,7 +134,7 @@ tracker/
   analysis.py       EGP conversion and all KPIs (pure functions)
   fetch.py          small HTTP helper with retries
 web/                the page: index.html, style.css, app.js (+ Chart.js in web/vendor)
-tools/              portable-Python setup for Windows
+tools/              portable-Python setup for Windows, release zip builder
 Start-Mac.command   macOS launcher (also sets up Python if needed)
 Start-Windows.bat   Windows launcher (also sets up Python if needed)
 ```
@@ -142,7 +147,7 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Version histo
 
 **طريقة التشغيل:**
 
-1. [حمّل الملف المضغوط](https://github.com/ahmedosama181/nabd/archive/refs/heads/main.zip) وفك الضغط.
+1. [حمّل الملف المضغوط Nabd.zip](https://github.com/ahmedosama181/Nabd/releases/latest/download/Nabd.zip) وفك الضغط.
 2. على **ماك**: اضغط مرتين على `Start-Mac.command`. في أول مرة: إعدادات النظام ← الخصوصية والأمان ← **فتح على أي حال**.
 3. على **ويندوز**: اضغط مرتين على `Start-Windows.bat`. لو ظهرت رسالة الحماية: **More info ← Run anyway**.
 
