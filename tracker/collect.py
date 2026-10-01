@@ -17,15 +17,19 @@ from concurrent.futures import ThreadPoolExecutor
 
 from . import analysis, sources
 from .fetch import FetchError
+from .live import Throttle
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE_PATH = os.path.join(ROOT, "data", "store.json")
 LEGACY_CACHE = os.path.join(ROOT, "data", "cache.json")
 MAX_AGE_SECONDS = 30 * 60  # don't hit the network again within 30 minutes unless asked
+MIN_FORCED_SECONDS = 60    # Refresh re-downloads the daily rates at most once a minute, however often it is clicked
+RETRY_SECONDS = 5 * 60     # after a failed update (offline), try again on its own at most every 5 minutes
 OVERLAP_DAYS = 4
 SYMBOLS = list(sources.YAHOO_SYMBOLS)
 
 _lock = threading.Lock()
+_last_failed = 0.0  # when the last update reached no source at all (kept in memory only)
 
 
 def _empty_store(year):
@@ -137,7 +141,7 @@ def update(store, today):
 
     got, errors = {}, {}
     with ThreadPoolExecutor(max_workers=1) as pool:
-        local_future = pool.submit(sources.local_gold_snapshot)
+        local_future = pool.submit(shop_snapshot, store)  # throttled: at most every 10 minutes
         for sym in SYMBOLS:
             order = [SRC_DAILY, SRC_YAHOO] + ([SRC_ECB] if sym in ("EURUSD=X", "GBPUSD=X") else [])
             errors[sym] = []
@@ -186,14 +190,17 @@ def update(store, today):
 
 def get_payload(force=False, today=None):
     """Return the UI payload. Tops up the store when it is older than 30 minutes (or when forced)."""
+    global _last_failed
     today = today or dt.date.today()
     with _lock:
         store = load_store(today)
         fresh = False
-        if store["fetched_at"] and not force:
+        if store["fetched_at"]:
             age = (dt.datetime.now() - dt.datetime.fromisoformat(store["fetched_at"])).total_seconds()
-            fresh = age < MAX_AGE_SECONDS
+            fresh = age < (MIN_FORCED_SECONDS if force else MAX_AGE_SECONDS)
         notice, added = None, 0
+        if not fresh and store["series"]["EGP=X"] and time.time() - _last_failed < (MIN_FORCED_SECONDS if force else RETRY_SECONDS):
+            fresh, notice = True, "offline"  # nothing answered moments ago: show the saved prices, don't ask again yet
         if not fresh:
             had_data = bool(store["series"]["EGP=X"])
             before = json.dumps(store["series"], sort_keys=True)
@@ -201,6 +208,7 @@ def get_payload(force=False, today=None):
             reached = any(s["ok"] for s in store["status"].values())
             if not reached and had_data:
                 notice = "offline"  # nothing answered: keep the saved prices, try again next time
+                _last_failed = time.time()
                 store = load_store(today)
             elif store["series"]["EGP=X"]:
                 save_store(store)
@@ -212,8 +220,13 @@ def get_payload(force=False, today=None):
                 errs = "; ".join(s.get("error", "") for s in store["status"].values() if not s["ok"])
                 print("Could not download prices: " + errs)  # details for the terminal; the page shows a short message
                 raise RuntimeError("no-connection")
-        payload = analysis.build(store["series"], store.get("local"), today)
+        fx, metals = live_rates(store, today, force=force or not fresh)
+        values, key = live_overlay(fx, metals, today)
+        local = newest_local(store.get("local"), shop_prices(store))
+        payload = analysis.build(store["series"], local, today, live=values, live_key=key)
         payload.update(
+            live={"key": key, "fx_source": fx and fx.get("source"), "fx_at": fx and fx.get("at"),
+                  "metals_at": metals and metals.get("at")} if key else None,
             fetched_at=store["fetched_at"],
             sources={s: source_id(store["sources"].get(s)) for s in SYMBOLS},
             labels=dict(sources.YAHOO_SYMBOLS),
@@ -225,67 +238,190 @@ def get_payload(force=False, today=None):
 
 
 # ---------------------------------------------------------------- live prices (while the page is open)
-LIVE_TTL, LOCAL_TTL = 30, 10 * 60  # seconds
-_live = {"at": 0.0, "data": None}
-_local = {"at": 0.0, "data": None, "busy": False}
-_live_lock = threading.Lock()
+# How often each live source may be asked (see tracker/live.py for the full rules, including back-off).
+FX_INTERVAL, METALS_INTERVAL, SHOPS_INTERVAL = 5 * 60, 60, 10 * 60  # seconds
+LIVE_MAX_AGE = 3 * 3600  # a "live" value older than this is not shown as live
+_fx = Throttle(FX_INTERVAL)
+_metals = Throttle(METALS_INTERVAL)
+_shops = Throttle(SHOPS_INTERVAL)
+_shops_busy = threading.Event()
 
 
-def _refresh_local():
+def _now_iso():
+    return dt.datetime.now().isoformat(timespec="seconds")
+
+
+def _latest(store, sym):
+    series = store["series"].get(sym) or {}
+    if not series:
+        return None, None
+    day = max(series)
+    return day, series[day]
+
+
+def daily_reference(store):
+    """The latest daily USD, EUR and GBP in EGP, used to sanity-check live rates."""
+    usd = _latest(store, "EGP=X")[1]
+    if not usd:
+        return None
+    eur, gbp = _latest(store, "EURUSD=X")[1], _latest(store, "GBPUSD=X")[1]
+    return {"usd": usd, "eur": eur * usd if eur else None, "gbp": gbp * usd if gbp else None}
+
+
+def _sane(fx):
     try:
-        snap = sources.local_gold_snapshot()
-        if snap and "error" not in snap:
-            _local["data"] = snap
-        _local["at"] = time.time()
+        return (1 < fx["usd"] < 10000 and 0.5 < fx["eur"] / fx["usd"] < 2.0 and 0.5 < fx["gbp"] / fx["usd"] < 3.0)
+    except (KeyError, TypeError, ZeroDivisionError):
+        return False
+
+
+def _close(a, b, tol):
+    return all(b.get(k) and abs(a[k] / b[k] - 1) <= tol for k in ("usd", "eur", "gbp") if b.get(k))
+
+
+def fetch_live_fx(reference):
+    """Live USD, EUR and GBP in EGP: Coinbase first, Wise as backup.
+
+    A reading more than 10% away from the latest daily rate is accepted only when both live sources agree
+    within 1% (a real jump, such as a devaluation, rather than a bad reading)."""
+    far, errors = [], []
+    for fetch in (sources.coinbase_fx, sources.wise_fx):
+        try:
+            fx = fetch()
+        except (FetchError, ValueError, KeyError, TypeError) as exc:
+            errors.append("%s: %s" % (fetch.__name__, exc))
+            continue
+        if not _sane(fx):
+            errors.append("%s: implausible values" % fetch.__name__)
+            continue
+        if reference is None or _close(fx, reference, 0.10):
+            return dict(fx, at=_now_iso())
+        far.append(fx)
+    if len(far) == 2 and _close(far[0], far[1], 0.01):
+        return dict(far[0], at=_now_iso())
+    raise FetchError("no plausible live exchange rate (%s)" % "; ".join(errors or ["far from the daily rate"]))
+
+
+def fetch_live_metals():
+    """Real-time gold and silver (USD per ounce). Keeps the previous value of a metal that failed this time."""
+    out, previous = {}, _metals.value or {}
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = {code: pool.submit(sources.live_price, code) for code in ("XAU", "XAG")}
+        for code, future in futures.items():
+            try:
+                out[code] = future.result()
+            except (FetchError, ValueError, KeyError, TypeError):
+                if code in previous:
+                    out[code] = previous[code]
+    if not out:
+        raise FetchError("gold-api.com did not answer")
+    out["at"] = _now_iso()
+    return out
+
+
+def _fresh(value, today):
+    """A live value is used only on the day it was read and while it is less than LIVE_MAX_AGE old."""
+    if not value or "at" not in value:
+        return None
+    at = dt.datetime.fromisoformat(value["at"])
+    if at.date() != today or (dt.datetime.now() - at).total_seconds() > LIVE_MAX_AGE:
+        return None
+    return value
+
+
+def live_rates(store, today, force=False):
+    """(fx, metals): the live values allowed right now; force=True at app start and on Refresh."""
+    reference = daily_reference(store)
+    with ThreadPoolExecutor(max_workers=2) as pool:  # both at once: a slow source never delays the other
+        fx = pool.submit(_fx.get, lambda: fetch_live_fx(reference), force)
+        metals = pool.submit(_metals.get, fetch_live_metals, force)
+        return _fresh(fx.result(), today), _fresh(metals.result(), today)
+
+
+def live_overlay(fx, metals, today):
+    """The live 'now' point for analysis.build: {series: value} under one key like '2026-10-01T16:33'."""
+    values = {}
+    if fx:
+        values.update({"EGP=X": fx["usd"], "EURUSD=X": fx["eur"] / fx["usd"], "GBPUSD=X": fx["gbp"] / fx["usd"]})
+    if metals:
+        for code, sym in (("XAU", "GC=F"), ("XAG", "SI=F")):
+            if code in metals:
+                values[sym] = metals[code]["price"]
+    if not values:
+        return None, None
+    stamps = [dt.datetime.fromisoformat(v["at"]) for v in (fx, metals) if v]
+    return values, today.isoformat() + "T" + max(stamps).strftime("%H:%M")
+
+
+def _read_shops():
+    snap = sources.local_gold_snapshot()
+    if not snap or "error" in snap:
+        raise FetchError((snap or {}).get("error", "no shop prices"))
+    return snap
+
+
+def _seed_shops(store):
+    """Start from the shop prices saved in the store, so a restart doesn't read the shop pages again right away."""
+    if _shops.value is None and store.get("local") and "error" not in store["local"]:
+        _shops.value = store["local"]
+        try:
+            _shops.at = dt.datetime.fromisoformat(store["local"]["fetched_at"]).timestamp()
+        except (KeyError, ValueError):
+            _shops.at = 0.0
+
+
+def shop_snapshot(store):
+    """Shop prices for the daily update: the shop pages are read only when the last reading is 10+ minutes old.
+    Returns the error (as {"error": ...}) when nothing could ever be read, like local_gold_snapshot()."""
+    _seed_shops(store)
+    value = _shops.get(_read_shops)
+    if value is None:
+        return {"error": _shops.error or "no shop prices"}
+    return dict(value, stale=True) if _shops.error else value  # the last reading failed: these are older prices
+
+
+def _refresh_shops():
+    try:
+        _shops.get(_read_shops)
     finally:
-        _local["busy"] = False
+        _shops_busy.clear()
+
+
+def shop_prices(store):
+    """Egyptian gold shop prices: re-read in the background (never slows a request down), at most every 10 min."""
+    _seed_shops(store)
+    if _shops.due() and not _shops_busy.is_set():
+        _shops_busy.set()
+        threading.Thread(target=_refresh_shops, daemon=True).start()  # daemon: never delays quitting the app
+    return _shops.value
+
+
+def newest_local(*snapshots):
+    """The most recent usable shop-price snapshot (or the first one, error included, if none is usable)."""
+    good = [x for x in snapshots if x and "error" not in x]
+    if good:
+        return max(good, key=lambda x: x.get("fetched_at", ""))
+    return next((x for x in snapshots if x), None)
 
 
 def live_payload(today=None):
-    """Real-time gold and silver (USD/oz) plus the latest saved dollar rate and Egyptian shop prices.
+    """Live strip data: real-time gold and silver, live currency rates, Egyptian shop prices.
 
-    Cached for 30 s, so any number of open pages costs at most two small requests per 30 s. Shop prices are
-    re-read in the background every 10 minutes and never slow this call down.
-    """
+    Every source is throttled (tracker/live.py), so polling this every minute from any number of open pages
+    costs at most: gold-api 2 requests/min, Coinbase 1 request/5 min, the shop page 1 request/10 min."""
     today = today or dt.date.today()
-    with _live_lock:
-        now = time.time()
-        if _live["data"] and now - _live["at"] < LIVE_TTL:
-            return _live["data"]
-        store = load_store(today)
-
-        def last(sym):
-            series = store["series"].get(sym) or {}
-            if not series:
-                return None, None
-            day = max(series)
-            return day, series[day]
-
-        if _local["data"] is None and store.get("local") and "error" not in store["local"]:
-            _local["data"] = store["local"]
-            try:
-                _local["at"] = dt.datetime.fromisoformat(store["local"]["fetched_at"]).timestamp()
-            except (KeyError, ValueError):
-                _local["at"] = 0.0
-        if now - _local["at"] > LOCAL_TTL and not _local["busy"]:
-            _local["busy"] = True
-            threading.Thread(target=_refresh_local, daemon=True).start()  # daemon: never delays quitting the app
-
-        fx_day, fx = last("EGP=X")
-        metals = {}
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = {code: pool.submit(sources.live_price, code) for code in ("XAU", "XAG")}
-            for code, sym in (("XAU", "GC=F"), ("XAG", "SI=F")):
-                try:
-                    p = futures[code].result()
-                except (FetchError, ValueError, KeyError, TypeError):
-                    continue
-                ref_day, ref = last(sym)
-                metals[code] = {"usd_oz": p["price"], "updated_at": p["updated_at"], "ref": ref, "ref_date": ref_day}
-        out = {"metals": metals, "fx": fx, "fx_date": fx_day, "local": _local["data"],
-               "fetched_at": dt.datetime.now().isoformat(timespec="seconds")}
-        _live.update(at=now, data=out)
-        return out
+    store = load_store(today)
+    fx, metals = live_rates(store, today)
+    fx_day, fx_daily = _latest(store, "EGP=X")
+    out_metals = {}
+    for code, sym in (("XAU", "GC=F"), ("XAG", "SI=F")):
+        if metals and code in metals:
+            ref_day, ref = _latest(store, sym)
+            out_metals[code] = {"usd_oz": metals[code]["price"], "updated_at": metals[code].get("updated_at"),
+                                "ref": ref, "ref_date": ref_day}
+    daily = daily_reference(store) or {}
+    return {"metals": out_metals, "fx": fx, "fx_daily": fx_daily, "fx_date": fx_day, "fx_ref": daily,
+            "local": shop_prices(store), "fetched_at": _now_iso()}
 
 
 CSV_LABELS_AR = {
@@ -296,7 +432,7 @@ CSV_LABELS_AR = {
 
 
 def to_csv(payload, lang="en"):
-    """Daily table (forward-filled), UTF-8 with BOM so Excel opens it correctly."""
+    """Daily table (forward-filled, plus the live point when there is one), UTF-8 with BOM so Excel opens it correctly."""
     buf = io.StringIO()
     w = csv.writer(buf)
     if lang == "ar":
@@ -306,5 +442,6 @@ def to_csv(payload, lang="en"):
     keys = list(payload["grid"]["series"])
     w.writerow(["التاريخ" if lang == "ar" else "Date"] + [labels[k] for k in keys])
     for i, d in enumerate(payload["grid"]["dates"]):
-        w.writerow([d] + ["" if payload["grid"]["series"][k][i] is None else payload["grid"]["series"][k][i] for k in keys])
+        # the live point's key "2026-10-01T16:33" is written as "2026-10-01 16:33", which Excel reads as a date and time
+        w.writerow([d.replace("T", " ")] + ["" if payload["grid"]["series"][k][i] is None else payload["grid"]["series"][k][i] for k in keys])
     return ("﻿" + buf.getvalue()).encode("utf-8")

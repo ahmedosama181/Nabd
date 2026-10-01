@@ -18,5 +18,7 @@ Nabd reads public data; it does not redistribute it. Each service keeps its own 
 
 - [currency-api / exchange-api](https://github.com/fawazahmed0/exchange-api) (daily exchange, gold and silver rates)
 - [gold-api.com](https://gold-api.com/docs) (live gold and silver prices)
+- [Coinbase](https://docs.cdp.coinbase.com/coinbase-app/track-apis/exchange-rates) (live dollar, euro and pound rates, public exchange-rates endpoint)
+- [Wise](https://wise.com) (backup for live currency rates)
 - [Yahoo Finance](https://finance.yahoo.com) and [Frankfurter](https://frankfurter.dev) (backup history)
-- egypt.gold-price-today.com and edahabapp.com (Egyptian gold shop prices)
+- www.gold-price-today.com and edahabapp.com (Egyptian gold shop prices)

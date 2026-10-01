@@ -15,7 +15,7 @@ def add_months(day, n):
 
 
 def _d(s):
-    return dt.date.fromisoformat(s)
+    return dt.date.fromisoformat(s[:10])  # also accepts the live point's key, e.g. "2026-10-01T16:33"
 
 
 class Lookup:
@@ -54,8 +54,12 @@ def compute_kpis(points, today, base=None):
     i_hi = max(range(len(bvals)), key=bvals.__getitem__)
     i_lo = min(range(len(bvals)), key=bvals.__getitem__)
 
-    rets = [vals[i] / vals[i - 1] - 1.0 for i in range(1, len(vals))]
+    # Daily statistics (average, daily swing) use one price per day: a live point (its key has a time,
+    # e.g. "2026-10-01T16:33") is not an extra day.
+    dvals = [v for d, v in allp if len(d) == 10]
+    rets = [dvals[i] / dvals[i - 1] - 1.0 for i in range(1, len(dvals))]
     vol = statistics.stdev(rets) * 100.0 if len(rets) > 2 else None
+    avg_vals = [v for d, v in body if len(d) == 10] or bvals
 
     peak, max_dd = vals[0], 0.0
     for v in vals:
@@ -110,13 +114,14 @@ def compute_kpis(points, today, base=None):
         "change_abs": last - first,
         "change_pct": _pct(last, first),
         "change_1d_pct": _pct(vals[-1], vals[-2]) if len(vals) > 1 else None,
+        "prev_date": dates[-2] if len(dates) > 1 else None,  # what change_1d_pct compares with
         "change_7d_pct": change_over(7),
         "change_30d_pct": change_over(30),
         "high": bvals[i_hi],
         "high_date": body[i_hi][0],
         "low": bvals[i_lo],
         "low_date": body[i_lo][0],
-        "average": statistics.fmean(bvals),
+        "average": statistics.fmean(avg_vals),
         "daily_volatility_pct": vol,
         "max_drawdown_pct": max_dd * 100.0,
         "monthly": monthly,
@@ -128,17 +133,30 @@ def compute_kpis(points, today, base=None):
 
 def _drivers(first_date, last_date, base_lookup, fx, base_label):
     """Split an EGP price change into 'global/base move' x 'USD/EGP move' (they multiply exactly)."""
-    f0, f1 = _d(first_date), _d(last_date)
-    b0, b1 = base_lookup.at(f0), base_lookup.at(f1)
-    x0, x1 = fx.at(f0), fx.at(f1)
+    b0, b1 = base_lookup.at(first_date), base_lookup.at(last_date)
+    x0, x1 = fx.at(first_date), fx.at(last_date)
     if None in (b0, b1, x0, x1):
         return None
     return {"base_label": base_label, "base_pct": _pct(b1, b0), "fx_pct": _pct(x1, x0)}
 
 
-def build(raw, local, today):
+def build(raw, local, today, live=None, live_key=None):
     """raw: {symbol: {date: close}} covering the current year plus a few days of December
-    (for the previous year's last close). Returns the JSON payload the UI renders."""
+    (for the previous year's last close). Returns the JSON payload the UI renders.
+
+    live: optional {symbol: value} read just now; it is added as one extra, last point under live_key
+    (e.g. "2026-10-01T16:33"), after today's daily value, so "today" compares the live price with the latest
+    daily price. With a live dollar rate, every other series also gets a "now" point (its latest global price
+    at the live dollar rate). The daily history itself is never changed."""
+    if live and live_key:
+        raw = {sym: dict(series) for sym, series in raw.items()}
+        for sym, value in live.items():
+            if sym in raw and raw[sym] and value:
+                raw[sym][live_key] = value
+        if live.get("EGP=X"):  # with a live dollar rate, "now" for everything else uses it too
+            for sym, series in raw.items():
+                if series and live_key not in series:
+                    series[live_key] = series[max(series)]
     start_s = dt.date(today.year, 1, 1).isoformat()
     base_label_date = dt.date(today.year - 1, 12, 31).isoformat()
     warnings = []
@@ -212,6 +230,7 @@ def build(raw, local, today):
 
     return {
         "year": today.year,
+        "live_key": live_key if live and live_key and live_key in all_dates else None,
         "period": {"start": start_s, "end": max(all_dates) if all_dates else start_s, "base_date": base_label_date},
         "assets": assets,
         "grid": {"dates": grid_dates, "series": series},

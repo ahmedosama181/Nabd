@@ -22,9 +22,9 @@
 
 Nabd is a small app that runs on your own computer and opens in your browser. It shows how the prices Egyptians care about have moved since the start of the year, in language anyone can follow.
 
-- **Live prices**: real-time gold and silver, gold per gram in EGP for your karat, and what Egyptian gold shops sell and buy at (updates every minute).
+- **Live prices**: the cards and charts end at the live price, and a live strip shows real-time gold and silver, gold per gram in EGP for your karat, the dollar, euro and pound in EGP, and what Egyptian gold shops sell and buy at. Live prices update only while you are using the page.
 - **Plain-language summary and insights**: what rose most and fell most, whether the pound got stronger or weaker, the year's peak and how far below it gold is now, the most jumpy and most stable asset, streaks.
-- **Five price cards**: today's price, % up or down this year, the 31 December price, a trend line and the last day's change.
+- **Five price cards**: the live price, % up or down this year, the 31 December price, a trend line and today's change.
 - **One chart, three views**: *Price* (with the year's highest and lowest points marked), *Compare all* (everything starts at 100), *Month by month*. Every tooltip shows the % change. Save any chart as an image.
 - **"How much is it worth?"**: grams of gold (24k / 21k / 18k), Egyptian gold pounds (8 g of 21k), silver or foreign cash, converted to EGP, with what a gold shop would pay and the change since 31 December. Or the reverse: what your budget buys.
 - **"What if?"**: what an amount would be worth today if you had put it into each asset on 31 December, compared with keeping cash.
@@ -67,6 +67,7 @@ Prefer the terminal? `python3 app.py` (macOS/Linux) or `py -3 app.py` (Windows).
 - **Year to date** = latest price vs the price on 31 December of last year.
 - **Month by month** = each month's last price vs the previous month's last price (January starts from 31 December; the current month is marked "so far").
 - Daily values are the rates published once a day (spot prices), not exchange closing prices. Weekends and holidays carry the last known price forward in the charts; the statistics use real trading days only.
+- **Live price** = the last point of every chart and the price on every card: gold and silver from gold-api.com, the dollar, euro and pound from Coinbase (or Wise). These are market rates: a bank or exchange office buys a little lower and sells a little higher. **Today** = the live price vs the latest daily price (currency-api usually publishes it early in the morning, Cairo time). The live point is added on top of the daily history and is never saved; averages and the daily swing use daily prices only.
 
 ## 🌐 Data sources
 
@@ -74,10 +75,28 @@ Prefer the terminal? `python3 app.py` (macOS/Linux) or `py -3 app.py` (Windows).
 |---|---|---|
 | Daily history: USD/EGP, EUR, GBP, gold and silver | [currency-api](https://github.com/fawazahmed0/exchange-api) daily rate files (jsDelivr, mirrored on Cloudflare Pages) | Primary source; one consistent source for every series |
 | Backup history | Yahoo Finance; Frankfurter (ECB) for EUR and GBP | Only if the daily rates can't be reached. Yahoo often answers scripts with HTTP 429 ([yfinance #2422](https://github.com/ranaroussi/yfinance/issues/2422)), so Nabd then skips it for 3 hours |
-| Live gold and silver | [gold-api.com](https://gold-api.com/docs) | Free, no key; asked once a minute while the page is open |
-| Egyptian gold shop prices | egypt.gold-price-today.com, then edahabapp.com | Read from their public pages every 10 minutes while the page is open |
+| Live gold and silver | [gold-api.com](https://gold-api.com/docs) | Free, no key |
+| Live dollar, euro and pound | [Coinbase exchange rates](https://docs.cdp.coinbase.com/coinbase-app/track-apis/exchange-rates) | Public, no key ("This endpoint doesn't require authentication") |
+| Backup for live currencies | Wise's public live rate (`wise.com/rates/live`) | No key; not officially documented. Used only when Coinbase doesn't answer or its rate looks wrong |
+| Egyptian gold shop prices | www.gold-price-today.com/egypt, then edahabapp.com | Read from their public pages |
 
-A price series never mixes sources: if one has to change, that series' whole year is downloaded again from the new source, so the charts never show a fake jump.
+A saved price series never mixes sources: if one has to change, that series' whole year is downloaded again from the new source, so the charts never show a fake jump.
+
+## ⚡ Live prices without getting blocked
+
+Every live source goes through one polite gatekeeper ([`tracker/live.py`](tracker/live.py)):
+
+| Source | While you use the page | The most it can ever be asked |
+|---|---|---|
+| gold-api.com | 2 requests a minute (gold, silver) | 4 a minute |
+| Coinbase | 1 request every 5 minutes | 2 a minute |
+| Gold shop page | 1 every 10 minutes | 1 every 10 minutes |
+| Daily rates (jsDelivr) | a few small files every 30 minutes | a few small files a minute |
+
+- Live prices are fetched when Nabd starts, when you press **Refresh** (honoured at most every 30 seconds, however often you click), and then once a minute **only while you are using the page**. Nothing is fetched while Nabd is on another tab, after 3 minutes without using it (1 minute if you are working in another window), or while the computer sleeps. The live strip then shows **PAUSED**, and fresh prices come the moment you are back.
+- If a source fails or answers "too many requests", Nabd leaves it alone for 1 minute, then 2, 4, … up to 30 minutes, and keeps showing the last good price meanwhile. Only one request per source is ever in flight.
+- A live currency rate more than 10% away from the latest daily rate is shown only if Coinbase and Wise agree within 1%. A live price from an earlier day, or older than 3 hours, is not shown as live.
+- The sources' own limits: currency-api says "No Rate limits" ([README](https://github.com/fawazahmed0/exchange-api)); gold-api.com says "No Rate Limiting for real time prices" ([docs](https://gold-api.com/docs)); Coinbase publishes no limit for this public endpoint (its documented limit for API keys is 10,000 requests an hour, [rate limiting](https://docs.cdp.coinbase.com/coinbase-app/api-architecture/rate-limiting)).
 
 ## 🔒 Privacy
 
@@ -92,6 +111,7 @@ Nabd runs entirely on your computer. There are no accounts, no tracking and no a
 | Port 8765 is busy | Nabd picks the next free port and prints the address. |
 | No internet | Nabd shows the last saved prices with a notice and tries again later. |
 | A section is empty | That source didn't answer; everything else keeps working. Press **Refresh** later. |
+| The live strip says **PAUSED** | Live prices pause while Nabd is on another tab or you are away. Move the mouse or tap the page and they update right away. |
 
 ## 🧑‍💻 For developers
 
@@ -104,7 +124,8 @@ python3 -m unittest discover -s tests -t .      # offline tests
 app.py              local web server (standard library only)
 tracker/
   sources.py        data sources: daily rates, live prices, backups, gold-shop scraping
-  collect.py        the yearly store, incremental updates, live endpoint, CSV export
+  collect.py        the yearly store, incremental updates, live prices, CSV export
+  live.py           polite access to live sources: throttling, back-off, one request at a time
   analysis.py       EGP conversion and all KPIs (pure functions)
   fetch.py          small HTTP helper with retries
 web/                the page: index.html, style.css, app.js (+ Chart.js in web/vendor)
@@ -126,6 +147,8 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Version histo
 3. على **ويندوز**: اضغط مرتين على `Start-Windows.bat`. لو ظهرت رسالة الحماية: **More info ← Run anyway**.
 
 لا تحتاج لتثبيت أي شيء: لو الجهاز ليس عليه بايثون، تقوم الأداة بتحميل نسخة خاصة بها تلقائياً في أول تشغيل. الأداة تعمل على جهازك فقط، بدون حسابات أو تتبع.
+
+الأسعار المباشرة (الذهب والفضة والدولار واليورو والإسترليني) تتحدث فقط وأنت تستخدم الصفحة، وتتوقف تلقائياً عند الانتقال لتبويب آخر أو ترك الصفحة دون استخدام، ثم تتحدث فور رجوعك.
 
 ## 📄 License and contact
 
